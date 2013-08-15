@@ -1786,3 +1786,30 @@ TEST_F(ConnectionParsing, ResponseNoStatusHeaders2) {
     ASSERT_EQ(HTP_REQUEST_COMPLETE, tx->request_progress);
     ASSERT_EQ(HTP_RESPONSE_COMPLETE, tx->response_progress);
 }
+
+TEST_F(ConnectionParsing, GetZeroContentLength) {
+    int rc = test_run(home, "85-get-zero-content-length.t", cfg, &connp);
+    ASSERT_GE(rc, 0);
+
+    ASSERT_EQ(1, htp_list_size(connp->conn->transactions));
+
+    htp_tx_t *tx = (htp_tx_t *) htp_list_get(connp->conn->transactions, 0);
+    ASSERT_TRUE(tx != NULL);
+
+    ASSERT_EQ(0, bstr_cmp_c(tx->request_method, "GET"));
+
+    ASSERT_EQ(0, bstr_cmp_c(tx->request_uri, "http://test.libhtp.org/?C=/../../../../../../../../../../../../../../../../../etc/passwd"));
+
+    ASSERT_TRUE(tx->parsed_uri != NULL);
+
+    ASSERT_TRUE(tx->parsed_uri->query != NULL);
+
+    ASSERT_EQ(0, bstr_cmp_c(tx->parsed_uri->query, "C=/../../../../../../../../../../../../../../../../../etc/passwd"));
+
+    htp_param_t *p = htp_tx_req_get_param(tx, "C", 1);
+    ASSERT_TRUE(p != NULL);
+
+    ASSERT_EQ(0, bstr_cmp_c(p->value, "/../../../../../../../../../../../../../../../../../etc/passwd"));
+    ASSERT_EQ(HTP_REQUEST_COMPLETE, tx->request_progress);
+    ASSERT_EQ(HTP_RESPONSE_COMPLETE, tx->response_progress);
+}
